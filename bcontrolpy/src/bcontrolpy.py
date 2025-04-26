@@ -1,7 +1,8 @@
 import asyncio
 import aiohttp
 import json
-import argparse
+import logging
+_LOGGER = logging.getLogger(__name__)
 
 key_mapping = {
     "1-0:1.4.0*255": "Active Power+",
@@ -74,6 +75,9 @@ class LoginValueError(Exception):
     pass
 
 class CookieValueError(Exception):
+    pass
+class NotAuthenticatedError(Exception):
+    """Raised when trying to get data without authentication."""
     pass
 
 async def getcookie(base_url):
@@ -175,11 +179,11 @@ def translate_keys(data, key_mapping):
     return translated_data
 
 class BControl:
-    def __init__(self, ip, password):
+    def __init__(self, ip, password, session):
         self.ip = ip
         self.password = password
         self.base_url = f"http://{ip}"
-        self.session = aiohttp.ClientSession()
+        self.session = session
         self.cookie_value = None
 
     async def login(self):
@@ -212,7 +216,8 @@ class BControl:
             authenticated_response = await authenticate(self.session, self.base_url, login, self.password, self.cookie_value)
             return authenticated_response
         except (CookieRetrievalError, LoginValueError, CookieValueError) as e:
-            print(e)
+            _LOGGER.error("Login failed: %s", e)
+            raise
 
     async def get_data(self):
         """
@@ -225,7 +230,7 @@ class BControl:
             dict: Translated data.
         """
         if not self.session or not self.cookie_value:
-            raise Exception("Not authenticated. Please call login() first.")
+            raise NotAuthenticatedError("Not authenticated. Please call login() first.")
         data = await getdata(self.session, self.base_url, self.cookie_value)
         data_dict = json.loads(data)
         translated_data = translate_keys(data_dict, key_mapping)

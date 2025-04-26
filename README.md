@@ -1,22 +1,28 @@
 # bcontrolpy
-This module lets you read the data from a BControl EM300.
 
-Example:
-```python
-import asyncio
-import bcontrolpy
-# Exmaple usage
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='BControl data retrieval')
-    parser.add_argument('--ip', required=True, help='IP address of the BControl device')
-    parser.add_argument('--password', required=True, help='Password for the BControl device')
-    args = parser.parse_args()
-    async def main():
-        bcontrol = BControl(args.ip, args.password)
-        await bcontrol.login()
-        data = await bcontrol.get_data()
-        print(data)
-        await bcontrol.close()
+[![PyPI - Version](https://img.shields.io/pypi/v/bcontrolpy.svg)](https://pypi.org/project/bcontrolpy)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/bcontrolpy.svg)](https://pypi.org/project/bcontrolpy)
 
-    asyncio.run(main())
+-----
+
+## Table of Contents
+
+- [Installation](#installation)
+- [License](#license)
+
+## Installation
+
+```console
+pip install bcontrolpy
 ```
+
+## Example 
+See example.py
+```console
+example.py --ip <IP> --password "secret"
+```
+
+
+## License
+
+`bcontrolpy` is distributed under the terms of the Apache license.

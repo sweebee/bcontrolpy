@@ -1,0 +1,8 @@
+LICENSE
+README.md
+pyproject.toml
+bcontrolpy/src/bcontrolpy.egg-info/PKG-INFO
+bcontrolpy/src/bcontrolpy.egg-info/SOURCES.txt
+bcontrolpy/src/bcontrolpy.egg-info/dependency_links.txt
+bcontrolpy/src/bcontrolpy.egg-info/requires.txt
+bcontrolpy/src/bcontrolpy.egg-info/top_level.txt
