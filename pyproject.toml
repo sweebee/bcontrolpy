@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bcontrolpy"
-version = "0.0.2"
+version = "0.0.3"
 description = "Python Modul zur Steuerung eines B-Control Webinterface"
 authors = [
-    { name = "Lukas A.", email = "dein@email.de" }
+    { name = "ITTV-tools", email = "ITTV-tools@users.noreply.github.com" }
 ]
 license = { text = "Apache License" }
 readme = "README.md"

@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: bcontrolpy
-Version: 0.0.2
+Version: 0.0.3
 Summary: Python Modul zur Steuerung eines B-Control Webinterface
 Author-email: "Lukas A." <dein@email.de>
 License: Apache License
@@ -28,6 +28,13 @@ Dynamic: license-file
 pip install bcontrolpy
 ```
 
+## Example 
+See example.py
+```console
+example.py --ip <IP> --password "secret"
+```
+
+
 ## License
 
-`bcontrolpy` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+`bcontrolpy` is distributed under the terms of the Apache license.
