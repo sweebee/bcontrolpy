@@ -1,8 +1,8 @@
 Metadata-Version: 2.4
 Name: bcontrolpy
-Version: 0.0.3
+Version: 0.0.4
 Summary: Python Modul zur Steuerung eines B-Control Webinterface
-Author-email: "Lukas A." <dein@email.de>
+Author-email: ITTV-tools <ITTV-tools@users.noreply.github.com>
 License: Apache License
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
