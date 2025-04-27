@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bcontrolpy"
-version = "0.0.4"
+version = "0.0.5"
 description = "Python Modul zur Steuerung eines B-Control Webinterface"
 authors = [
     { name = "ITTV-tools", email = "ITTV-tools@users.noreply.github.com" }
