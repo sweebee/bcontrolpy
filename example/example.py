@@ -8,7 +8,8 @@ import json  # Add this import at the top
 async def main(ip, password):    
     async with aiohttp.ClientSession() as session:
         bc = BControl(ip, password, session=session)
-        await bc.login()
+        login_response = await bc.login()
+        print("Login Response:", login_response)
         
         try:
             while True:

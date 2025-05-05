@@ -2,9 +2,11 @@ import asyncio
 import aiohttp
 import json
 import logging
-from key_mapping import key_mapping
+from .key_mapping import key_mapping
+
 _LOGGER = logging.getLogger(__name__)
 
+# Eigene Exceptions
 class CookieRetrievalError(Exception):
     pass
 
@@ -13,169 +15,124 @@ class LoginValueError(Exception):
 
 class CookieValueError(Exception):
     pass
+
+class AuthenticationError(Exception):
+    """Raised when login fails due to invalid credentials."""
+    pass
+
 class NotAuthenticatedError(Exception):
     """Raised when trying to get data without authentication."""
     pass
 
-async def getcookie(base_url):
-    """
-    Retrieves cookies, status code, and response text from the given base URL.
-
-    Args:
-        base_url (str): The base URL to send the request to.
-
-    Returns:
-        Tuple[aiohttp.CookieJar, int, str]: A tuple containing the cookies, status code, and response text.
-
-    Raises:
-        CookieRetrievalError: If an HTTP error occurs, the request times out, or an unexpected error occurs.
-    """
-    initial_url = f"{base_url}/start.php"
+async def getcookie(base_url: str):
+    url = f"{base_url}/start.php"
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(initial_url) as response:
-                response.raise_for_status()  # Raise an exception for HTTP errors
-                cookies = response.cookies
-                status = response.status
-                text = await response.text()
-                return cookies, status, text
+            async with session.get(url) as resp:
+                resp.raise_for_status()
+                return resp.cookies, await resp.text()
     except aiohttp.ClientError as e:
-        raise CookieRetrievalError(f"HTTP error: {e}")
+        raise CookieRetrievalError(f"HTTP error during initial request: {e}")
     except asyncio.TimeoutError:
-        raise CookieRetrievalError("Request timed out")
+        raise CookieRetrievalError("Initial request timed out")
     except Exception as e:
-        raise CookieRetrievalError(f"An unexpected error occurred: {e}")
+        raise CookieRetrievalError(f"Unexpected error during cookie retrieval: {e}")
 
-async def authenticate(session, base_url, login, password, cookie):
-    """
-    Authenticates the user by sending a POST request to the login URL with the provided login credentials.
+async def authenticate(session: aiohttp.ClientSession, base_url: str, login: str, password: str, cookie_value: str):
+    url = f"{base_url}/start.php"
+    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': f'PHPSESSID={cookie_value}'}
+    data = {'login': login, 'password': password}
+    try:
+        async with session.post(url, data=data, headers=headers) as resp:
+            # Spezielles Handling für falsche Anmeldedaten
+            if resp.status == 403:
+                raise AuthenticationError("Invalid credentials: access forbidden (403)")
+            resp.raise_for_status()
+            return await resp.text()
+    except AuthenticationError:
+        raise
+    except aiohttp.ClientResponseError as e:
+        raise AuthenticationError(f"Authentication failed: HTTP {e.status}")
+    except aiohttp.ClientError as e:
+        raise AuthenticationError(f"HTTP error during authentication: {e}")
+    except asyncio.TimeoutError:
+        raise AuthenticationError("Authentication request timed out")
+    except Exception as e:
+        raise AuthenticationError(f"Unexpected error during authentication: {e}")
 
-    Args:
-        session (aiohttp.ClientSession): The aiohttp client session.
-        base_url (str): The base URL of the application.
-        login (str): The user's login.
-        password (str): The user's password.
-        cookie (str): The PHPSESSID cookie value.
+async def getdata(session: aiohttp.ClientSession, base_url: str, cookie_value: str):
+    url = f"{base_url}/mum-webservice/data.php"
+    headers = {'Cookie': f'PHPSESSID={cookie_value}'}
+    async with session.get(url, headers=headers) as resp:
+        resp.raise_for_status()
+        return await resp.text()
 
-    Returns:
-        str: The response text from the POST request.
 
-    Raises:
-        aiohttp.ClientResponseError: If the POST request returns a non-2xx status code.
-        aiohttp.ClientError: If there is an error during the POST request.
-    """
-    login_url = f"{base_url}/start.php"    
-    payload = f"login={login}&password={password}"
-    headers = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Cookie': f'PHPSESSID={cookie}'
-    }
-    async with session.post(login_url, data=payload, headers=headers) as response:
-        response.raise_for_status()
-        return await response.text()
-
-async def getdata(session, base_url, cookie):
-    """
-    Retrieves data from a specified URL using an async session.
-
-    Args:
-        session (aiohttp.ClientSession): The async session to use for the request.
-        base_url (str): The base URL of the data endpoint.
-        cookie (str): The cookie value to include in the request headers.
-
-    Returns:
-        str: The response text from the data endpoint.
-
-    Raises:
-        aiohttp.ClientResponseError: If the response status code is not successful.
-        aiohttp.ClientError: If there is an error making the request.
-    """
-    data_url = f"{base_url}/mum-webservice/data.php"
-    headers = {
-        'Cookie': f'PHPSESSID={cookie}'
-    }
-    async with session.get(data_url, headers=headers) as response:
-        response.raise_for_status()
-        return await response.text()
-
-def translate_keys(data, key_mapping):
-    """
-    Translates the keys of a dictionary using a provided key mapping.
-
-    Args:
-        data (dict): The dictionary whose keys need to be translated.
-        key_mapping (dict): A dictionary mapping original keys to translated keys.
-
-    Returns:
-        dict: A new dictionary with translated keys.
-    """
-    translated_data = {}
-    for key, value in data.items():
-        translated_key = key_mapping.get(key, key)
-        translated_data[translated_key] = value
-    return translated_data
+def translate_keys(data: dict, mapping: dict) -> dict:
+    return {mapping.get(k, k): v for k, v in data.items()}
 
 class BControl:
-    def __init__(self, ip, password, session):
-        self.ip = ip
-        self.password = password
+    def __init__(self, ip: str, password: str, session: aiohttp.ClientSession = None):
         self.base_url = f"http://{ip}"
-        self.session = session
+        self.password = password
+        self.session = session or aiohttp.ClientSession()
         self.cookie_value = None
+        self.logged_in = False
+        self.serial = None
+        self.app_version = None
 
-    async def login(self):
+    async def login(self) -> dict:
         """
-        Logs in to the application using the provided credentials.
-
-        Returns:
-            The authenticated response.
-
-        Raises:
-            CookieRetrievalError: If there is an error retrieving the cookies.
-            LoginValueError: If the login value is not found in the response.
-            CookieValueError: If the 'PHPSESSID' cookie is not found.
+        Logs in and returns a dict with serial, app_version and authentication status.
+        Raises AuthenticationError if credentials are invalid.
         """
         try:
-            cookies, status, text = await getcookie(self.base_url)
-            if cookies is None:
-                raise CookieRetrievalError("Error retrieving cookies")
+            cookies, text = await getcookie(self.base_url)
+            init_data = json.loads(text)
+            login_val = init_data.get("serial")
+            if not login_val:
+                raise LoginValueError("Start response missing 'serial'.")
 
-            # Parse the JSON response to extract the login value
-            response_data = json.loads(text)
-            login = response_data.get("serial")
-            if not login:
-                raise LoginValueError("Login value not found")
+            phpsess = cookies.get("PHPSESSID")
+            if not phpsess or not phpsess.value:
+                raise CookieValueError("PHPSESSID cookie missing after start.")
+            self.cookie_value = phpsess.value
 
-            self.cookie_value = cookies.get("PHPSESSID").value
-            if not self.cookie_value:
-                raise CookieValueError("Cookie 'PHPSESSID' not found")
+            auth_text = await authenticate(self.session, self.base_url, login_val, self.password, self.cookie_value)
+            auth = json.loads(auth_text)
 
-            authenticated_response = await authenticate(self.session, self.base_url, login, self.password, self.cookie_value)
-            return authenticated_response
+            # nur die benötigten Felder
+            self.serial = auth.get("serial")
+            self.app_version = auth.get("app_version")
+            auth_status = bool(auth.get("authentication"))
+            self.logged_in = auth_status
+
+            _LOGGER.info("Login successful: serial=%s, app_version=%s", self.serial, self.app_version)
+            return {"serial": self.serial, "app_version": self.app_version, "authentication": auth_status}
+
+        except AuthenticationError as e:
+            _LOGGER.error("Authentication error: %s", e)
+            self.logged_in = False
+            raise
         except (CookieRetrievalError, LoginValueError, CookieValueError) as e:
-            _LOGGER.error("Login failed: %s", e)
+            _LOGGER.error("Login preparation failed: %s", e)
+            self.logged_in = False
             raise
 
-    async def get_data(self):
-        """
-        Retrieves data from the server.
+    async def get_data(self) -> dict:
+        if not self.logged_in:
+            _LOGGER.info("Session not valid, logging in first...")
+            await self.login()
 
-        Raises:
-            Exception: If not authenticated. Please call login() first.
+        raw = await getdata(self.session, self.base_url, self.cookie_value)
+        data = json.loads(raw)
+        if data.get("authentication") is False:
+            _LOGGER.warning("Session expired, re-login")
+            await self.login()
+            raw = await getdata(self.session, self.base_url, self.cookie_value)
+            data = json.loads(raw)
 
-        Returns:
-            dict: Translated data.
-        """
-        if not self.session or not self.cookie_value:
-            raise NotAuthenticatedError("Not authenticated. Please call login() first.")
-        data = await getdata(self.session, self.base_url, self.cookie_value)
-        data_dict = json.loads(data)
-        translated_data = translate_keys(data_dict, key_mapping)
-        return translated_data
+        return translate_keys(data, key_mapping)
 
     async def close(self):
-        """
-        Closes the HTTP session.
-        """
         await self.session.close()
-
