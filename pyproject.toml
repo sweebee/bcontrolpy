@@ -26,3 +26,6 @@ python_files = ["test_*.py"]
 asyncio_mode = "auto"
 pythonpath = ["src"]
 addopts = "-q"
+
+[tool.poetry.dependencies]
+python = ">=3.9.6"
