@@ -2,27 +2,95 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/bcontrolpy.svg)](https://pypi.org/project/bcontrolpy)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/bcontrolpy.svg)](https://pypi.org/project/bcontrolpy)
+[![License](https://img.shields.io/pypi/l/bcontrolpy.svg)](https://opensource.org/licenses/Apache-2.0)
 
------
+---
+
+**bcontrolpy** is an asynchronous Python client for the TQ-Systems EM300 energy meter, providing authentication, session management, and data retrieval via the MUM webservice.
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [License](#license)
+* [Installation](#installation)
+* [Quickstart](#quickstart)
+* [Usage](#usage)
+
+  * [Python API](#python-api)
+  * [Command Line Example](#command-line-example)
+* [Configuration](#configuration)
+* [License](#license)
 
 ## Installation
 
-```console
+Install the latest release from PyPI:
+
+```bash
 pip install bcontrolpy
 ```
 
-## Example 
-See example.py
-```console
-example.py --ip <IP> --password "secret"
+Or install the development version directly from GitHub:
+
+```bash
+pip install git+https://github.com/yourorg/bcontrolpy.git
 ```
 
+## Quickstart
+
+```python
+import asyncio
+from bcontrolpy import BControl, AuthenticationError
+
+async def main():
+    # Connect to EM300 meter on local network
+    bc = BControl(ip="192.168.1.100", password="your_password")
+    try:
+        info = await bc.login()
+        print("Login successful:", info)
+
+        data = await bc.get_data()
+        print("Meter readings:", data)
+    except AuthenticationError:
+        print("Authentication failed: check your credentials")
+    finally:
+        await bc.close()
+
+asyncio.run(main())
+```
+
+## Usage
+
+### Python API
+
+| Method               | Returns                                          | Raises                                                                               |
+| -------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `login() -> dict`    | `{'serial', 'app_version', 'authentication'}`    | `AuthenticationError`, `CookieRetrievalError`, `LoginValueError`, `CookieValueError` |
+| `get_data() -> dict` | Measurement values mapped to human-readable keys | `NotAuthenticatedError`, HTTP errors                                                 |
+| `close() -> None`    |                                                  |                                                                                      |
+
+Example:
+
+```python
+bc = BControl(ip="192.168.1.100", password="your_password")
+info = await bc.login()
+values = await bc.get_data()
+await bc.close()
+```
+
+### Command Line Example
+
+Run the provided example script:
+
+```bash
+python example/example.py --ip 192.168.1.100 --password "your_password"
+```
+
+This prints the login details and current meter readings.
+
+## Configuration
+
+* **Reuse `aiohttp.ClientSession`**: Pass an existing session (e.g., from Home Assistant) to `BControl` to take advantage of connection pooling.
+* **Handle Exceptions**: Catch `AuthenticationError` to trigger re-authentication flows.
+* **Customize Mapping**: The OBIS code mapping resides in `key_mapping.py` and can be extended for additional measurements.
 
 ## License
 
-`bcontrolpy` is distributed under the terms of the Apache license.
+`bcontrolpy` is distributed under the **Apache 2.0 License**. See [LICENSE](LICENSE) for details.
