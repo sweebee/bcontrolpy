@@ -73,9 +73,27 @@ def translate_keys(data: dict, mapping: dict) -> dict:
 
 class BControl:
     def __init__(self, ip: str, password: str, session: aiohttp.ClientSession = None):
+        """Initialize the client.
+
+        Parameters
+        ----------
+        ip: str
+            IP address of the B-Control meter.
+        password: str
+            Password used for authentication.
+        session: aiohttp.ClientSession, optional
+            Reuse an existing session. If omitted, ``BControl`` creates its
+            own ``ClientSession`` which will be closed on :meth:`close`.
+        """
+
         self.base_url = f"http://{ip}"
         self.password = password
-        self.session = session or aiohttp.ClientSession()
+        if session is None:
+            self.session = aiohttp.ClientSession()
+            self._session_owner = True
+        else:
+            self.session = session
+            self._session_owner = False
         self.cookie_value = None
         self.logged_in = False
         self.serial = None
@@ -135,4 +153,6 @@ class BControl:
         return translate_keys(data, key_mapping)
 
     async def close(self):
-        await self.session.close()
+        """Close the underlying :class:`aiohttp.ClientSession` if owned."""
+        if self._session_owner:
+            await self.session.close()
