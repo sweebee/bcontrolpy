@@ -30,7 +30,7 @@ pip install bcontrolpy
 Or install the development version directly from GitHub:
 
 ```bash
-pip install git+https://github.com/yourorg/bcontrolpy.git
+pip install git+https://github.com/ITTV-tools/bcontrolpy.git
 ```
 
 ## Quickstart
