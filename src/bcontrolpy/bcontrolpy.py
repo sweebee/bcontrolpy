@@ -150,7 +150,24 @@ class BControl:
             raw = await getdata(self.session, self.base_url, self.cookie_value)
             data = json.loads(raw)
 
-        return translate_keys(data, key_mapping)
+        translated_data = translate_keys(data, key_mapping)
+
+        # Divide Total Energy+ and Total Energy- values by 100
+        energy_keys = [
+            "Total Energy+", "Total Energy-",
+            "L1 Total Energy+", "L1 Total Energy-",
+            "L2 Total Energy+", "L2 Total Energy-",
+            "L3 Total Energy+", "L3 Total Energy-"
+        ]
+
+        for key in energy_keys:
+            if key in translated_data and translated_data[key] is not None:
+                try:
+                    translated_data[key] = float(translated_data[key]) / 100
+                except (ValueError, TypeError):
+                    _LOGGER.warning(f"Could not convert {key} value to float: {translated_data[key]}")
+
+        return translated_data
 
     async def close(self):
         """Close the underlying :class:`aiohttp.ClientSession` if owned."""
